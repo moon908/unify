@@ -1,9 +1,7 @@
 import { SectionCards } from "@/components/dashboard/section-cards"
-import { MyPieChart } from "@/components/charts/MyPieChart"
-import { MyBarChart } from "@/components/charts/MyBarChart"
-import { MemberList } from "@/components/dashboard/member-list"
 
-export default function Page() {
+
+export default function Page({ orgId }: { orgId: string }) {
     return (
         <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col gap-2">
@@ -11,13 +9,11 @@ export default function Page() {
                     {/* Left Column */}
                     <div className="flex flex-1 flex-col gap-4 md:gap-6">
                         <SectionCards />
-                        <MemberList />
                     </div>
 
                     {/* Right Column */}
                     <div className="flex-none w-full lg:w-[400px] flex flex-col gap-4 md:gap-6">
-                        <MyPieChart />
-                        <MyBarChart />
+
                     </div>
                 </div>
 

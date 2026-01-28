@@ -1,10 +1,10 @@
 import React from 'react'
-import ProTip from '@/components/workspace/ProTip'
+import Workspace from '@/components/workspace/Workspace'
 
 const page = () => {
     return (
         <div>
-            <ProTip />
+            <Workspace />
         </div>
     )
 }

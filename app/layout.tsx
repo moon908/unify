@@ -22,6 +22,8 @@ export const metadata: Metadata = {
   description: "Product Management System",
 };
 
+import { Toaster } from "@/components/ui/sonner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,6 +39,7 @@ export default function RootLayout({
             <TopLoader />
           </Suspense>
           {children}
+          <Toaster />
         </body>
       </html>
     </ClerkProvider>

@@ -13,36 +13,60 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
+import { useParams } from "next/navigation";
+
 export function SectionCards() {
+  const params = useParams();
+  const orgId = params.orgId as string;
   const [completedCount, setCompletedCount] = useState<number | string>("...");
   const [pendingCount, setPendingCount] = useState<number | string>("...");
   const [totalCount, setTotalCount] = useState<number | string>("...");
 
   useEffect(() => {
     async function fetchTaskStats() {
+      if (!orgId) return;
       try {
         // Fetch Completed Tasks
         const { count: completed, error: completedError } = await supabase
           .from('Task')
           .select('*', { count: 'exact', head: true })
-          .eq('columnId', 'done');
+          .eq('columnId', 'done')
+          .eq('org_id', orgId); // Assuming org_id exists in Task
 
-        if (completedError) throw completedError;
-        setCompletedCount(completed || 0);
+        if (completedError) {
+          // Fallback if org_id doesn't exist in Task
+          console.warn('org_id not found in Task table, trying without filter');
+          const { count: completedFB } = await supabase
+            .from('Task')
+            .select('*', { count: 'exact', head: true })
+            .eq('columnId', 'done');
+          setCompletedCount(completedFB || 0);
+        } else {
+          setCompletedCount(completed || 0);
+        }
 
         // Fetch Pending Tasks (not in 'done' column)
         const { count: pending, error: pendingError } = await supabase
           .from('Task')
           .select('*', { count: 'exact', head: true })
-          .neq('columnId', 'done');
+          .neq('columnId', 'done')
+          .eq('org_id', orgId);
 
-        if (pendingError) throw pendingError;
-        setPendingCount(pending || 0);
+        if (pendingError) {
+          const { count: pendingFB } = await supabase
+            .from('Task')
+            .select('*', { count: 'exact', head: true })
+            .neq('columnId', 'done');
+          setPendingCount(pendingFB || 0);
+        } else {
+          setPendingCount(pending || 0);
+        }
 
         // Fetch Total Projects
         const { count: total, error: totalError } = await supabase
           .from('Workspace')
-          .select('*', { count: 'exact', head: true });
+          .select('*', { count: 'exact', head: true })
+          .eq('org_id', orgId);
 
         if (totalError) throw totalError;
         setTotalCount(total || 0);
@@ -55,7 +79,7 @@ export function SectionCards() {
     }
 
     fetchTaskStats();
-  }, []);
+  }, [orgId]);
   const cards = [
     {
       title: "Task Completed",

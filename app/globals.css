@@ -159,14 +159,8 @@
 }
 
 /* Hide Clerk Branding and Footer */
-.cl-internal-ph7261,
-.cl-internal-1pybe97,
 .cl-footer,
 .cl-footerAction,
-.cl-internal-2f5n9k,
-.cl-internal-1pxv6p7,
-.cl-internal-1j7p9x7,
-div[class*="cl-internal-"],
 .cl-rootBox .cl-card>.cl-footer {
   display: none !important;
 }

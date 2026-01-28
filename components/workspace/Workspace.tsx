@@ -1,18 +1,12 @@
-"use client"
+'use client'
 
-import { useState } from 'react'
-import { Plus, Briefcase, Users, Lock, ChevronRight, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle
-} from "@/components/ui/card"
+import React, { useState, useEffect } from 'react'
+import { Plus, ChevronDown, ChevronUp, Users, Layout, Palette, Info, Activity, Loader2, Trash2, Mail } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import {
     Select,
     SelectContent,
@@ -20,154 +14,314 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { useRouter } from 'next/navigation'
-import WorkspaceCard from '@/components/workspace/workspaceCard'
+import { Badge } from '@/components/ui/badge'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { useParams } from 'next/navigation'
+import { createWorkspace, getWorkspaces, deleteWorkspace } from '@/lib/actions/workspace-actions'
+import { sendWorkspaceInvite } from '@/lib/actions/email-actions'
+import { toast } from 'sonner'
 
 const Workspace = () => {
-    const router = useRouter()
+    const params = useParams()
+    const orgId = params.orgId as string
+
     const [isExpanded, setIsExpanded] = useState(false)
+    const [workspaces, setWorkspaces] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Invitation states
+    const [isInviteOpen, setIsInviteOpen] = useState(false)
+    const [selectedWorkspace, setSelectedWorkspace] = useState<any>(null)
+    const [inviteEmails, setInviteEmails] = useState('')
+    const [isInviting, setIsInviting] = useState(false)
+
+    useEffect(() => {
+        if (orgId) {
+            fetchWorkspaces()
+        }
+    }, [orgId])
+
+    const fetchWorkspaces = async () => {
+        setIsLoading(true)
+        const result = await getWorkspaces(orgId)
+        if (result.success) {
+            setWorkspaces(result.data || [])
+        } else {
+            toast.error('Failed to load workspaces')
+        }
+        setIsLoading(false)
+    }
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setIsSubmitting(true)
+
+        const formData = new FormData(e.currentTarget)
+        const result = await createWorkspace(formData, orgId)
+
+        if (result.success) {
+            toast.success('Workspace created successfully')
+            setIsExpanded(false)
+            fetchWorkspaces()
+                ; (e.target as HTMLFormElement).reset()
+        } else {
+            toast.error(result.error || 'Failed to create workspace')
+        }
+        setIsSubmitting(false)
+    }
+
+    const handleDelete = async (workspaceId: string) => {
+        if (!confirm('Are you sure you want to delete this workspace?')) return
+
+        const result = await deleteWorkspace(workspaceId, orgId)
+        if (result.success) {
+            toast.success('Workspace deleted')
+            fetchWorkspaces()
+        } else {
+            toast.error(result.error || 'Failed to delete workspace')
+        }
+    }
+
+    const handleInviteMembers = async () => {
+        if (!inviteEmails.trim()) {
+            toast.error('Please enter at least one email address.')
+            return
+        }
+
+        setIsInviting(true)
+        const result = await sendWorkspaceInvite(inviteEmails, selectedWorkspace.project, orgId)
+
+        if (result.success) {
+            toast.success('Invitations sent successfully!')
+            setIsInviteOpen(false)
+            setInviteEmails('')
+        } else {
+            toast.error(result.error || 'Failed to send invitations.')
+        }
+        setIsInviting(false)
+    }
+
+    const getColorClass = (color: string) => {
+        const colors: Record<string, string> = {
+            blue: 'border-l-blue-500',
+            green: 'border-l-green-500',
+            purple: 'border-l-purple-500',
+            red: 'border-l-red-500',
+            orange: 'border-l-orange-500',
+        }
+        return colors[color] || 'border-l-primary'
+    }
 
     return (
-        <div className="p-4 lg:p-10 max-w-7xl mx-auto space-y-10">
-            {/* Header Section */}
-            <div className="flex flex-col gap-2">
-                <h1 className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-foreground to-foreground/60">
-                    Workspaces
-                </h1>
-                <p className="text-muted-foreground text-lg">
-                    Manage your team environments and project hubs.
-                </p>
-            </div>
+        <div className="p-6 space-y-8 max-w-5xl mx-auto">
+            {/* Create Workspace Section */}
+            <div className="bg-background border rounded-xl overflow-hidden shadow-sm transition-all duration-300">
+                <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                            <Plus size={20} />
+                        </div>
+                        <div className="text-left">
+                            <h2 className="text-lg font-semibold text-black">Create New Workspace</h2>
+                            <p className="text-sm text-muted-foreground">Set up a new space for your team projects</p>
+                        </div>
+                    </div>
+                    {isExpanded ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />}
+                </button>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start text-black">
-                {/* Create Workspace Form */}
-                <Card id="create-workspace" className={`lg:col-span-2 group relative overflow-hidden border-none shadow-2xl bg-linear-to-br from-card/80 to-card/30 backdrop-blur-xl transition-all duration-500 ease-in-out ${!isExpanded ? 'hover:scale-[1.01] cursor-pointer' : ''}`}>
-                    {/* Decorative Background Elements */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[80px] -mr-32 -mt-32 rounded-full" />
-                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 blur-[60px] -ml-24 -mb-24 rounded-full" />
-
-                    {!isExpanded ? (
-                        <div
-                            className="relative z-10 p-8 flex items-center justify-between"
-                            onClick={() => setIsExpanded(true)}
-                        >
-                            <div className="flex items-center gap-6">
-                                <div className="p-4 rounded-2xl bg-primary text-white shadow-xl shadow-primary/20 group-hover:scale-110 transition-transform duration-300">
-                                    <Plus className="size-8" />
+                {isExpanded && (
+                    <div className="p-6 border-t animate-in fade-in slide-in-from-top-2 duration-300">
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="project" className="flex items-center gap-2 text-black">
+                                        <Layout size={14} /> Workspace Name
+                                    </Label>
+                                    <Input id="project" name="project" placeholder="E.g. Engineering Team" required className="text-black" />
                                 </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold tracking-tight">Create New Workspace</h2>
-                                    <p className="text-muted-foreground mt-1">Ready to start a new project hub?</p>
+                                <div className="space-y-2">
+                                    <Label htmlFor="color" className="flex items-center gap-2 text-black">
+                                        <Palette size={14} /> Color
+                                    </Label>
+                                    <Select name="color" defaultValue="blue">
+                                        <SelectTrigger id="color" className="text-black">
+                                            <SelectValue placeholder="Select a color" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="blue">Blue</SelectItem>
+                                            <SelectItem value="green">Green</SelectItem>
+                                            <SelectItem value="purple">Purple</SelectItem>
+                                            <SelectItem value="red">Red</SelectItem>
+                                            <SelectItem value="orange">Orange</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
-                            <Button className="rounded-xl px-6 font-bold shadow-lg shadow-primary/20">
-                                Get Started
-                            </Button>
-                        </div>
-                    ) : (
-                        <>
-                            <CardHeader className="relative z-10 flex flex-row items-start justify-between">
-                                <div className="space-y-1.5">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                                            <Plus className="size-5" />
-                                        </div>
-                                    </div>
-                                    <CardTitle className="text-2xl font-bold">Create New Workspace</CardTitle>
-                                    <CardDescription>
-                                        Set up a new environment for your team to collaborate on projects.
-                                    </CardDescription>
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="rounded-full hover:bg-white/10"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIsExpanded(false);
-                                    }}
-                                >
-                                    <X className="size-5 text-muted-foreground" />
-                                </Button>
-                            </CardHeader>
 
-                            <CardContent className="space-y-6 relative z-10 p-6 md:p-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="ws-name">Workspace Name</Label>
-                                        <Input id="ws-name" placeholder="e.g. Design Team, Q1 Logistics" className="bg-white/5 border-white/10 h-11" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="ws-type">Privacy Setting</Label>
-                                        <Select>
-                                            <SelectTrigger id="ws-type" className="bg-white/5 border-white/10 h-11">
-                                                <SelectValue placeholder="Select Visibility" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="public">
-                                                    <div className="flex items-center gap-2">
-                                                        <Users className="size-4" />
-                                                        <span>Public (Team)</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="private">
-                                                    <div className="flex items-center gap-2">
-                                                        <Lock className="size-4" />
-                                                        <span>Private (Only me)</span>
-                                                    </div>
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="description" className="flex items-center gap-2 text-black">
+                                    <Info size={14} /> Description
+                                </Label>
+                                <Textarea id="description" name="description" placeholder="Briefly describe the purpose of this workspace..." className="min-h-[100px] text-black" />
+                            </div>
 
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <Label htmlFor="ws-desc">Description (Optional)</Label>
-                                    <Input id="ws-desc" placeholder="Briefly describe the purpose of this workspace..." className="bg-white/5 border-white/10 h-11" />
+                                    <Label htmlFor="status" className="flex items-center gap-2 text-black">
+                                        <Activity size={14} /> Status
+                                    </Label>
+                                    <Select name="status" defaultValue="Active">
+                                        <SelectTrigger id="status" className="text-black">
+                                            <SelectValue placeholder="Select status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Active">Active</SelectItem>
+                                            <SelectItem value="Pending">Pending</SelectItem>
+                                            <SelectItem value="Archived">Archived</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                            </CardContent>
+                            </div>
 
-                            <CardFooter className="relative z-10 border-t border-white/5 p-6 md:p-8">
-                                <Button className="w-full md:w-auto px-10 h-12 text-md font-bold bg-primary hover:bg-primary/90 transition-all shadow-xl shadow-primary/20">
-                                    Launch Workspace
+                            <div className="flex justify-end gap-3 pt-4">
+                                <Button type="button" className='text-black cursor-pointer hover:bg-gray-200' variant="outline" onClick={() => setIsExpanded(false)} disabled={isSubmitting}>
+                                    Cancel
                                 </Button>
-                            </CardFooter>
-                        </>
-                    )}
-                </Card>
-
-                {/* Sidebar Highlight/Info Card */}
-                <div className="space-y-6">
-                    <Card className="border-none shadow-xl bg-linear-to-br from-primary/10 to-primary/5 backdrop-blur-md border border-white/5 p-4">
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <Briefcase className="size-5 text-primary" />
-                                Pro Tip
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground leading-relaxed -mt-5">
-                                Workspaces help you group related projects and team members together. You can always change members and settings later.
-                            </p>
-                            <Button variant="link" className="px-0 mt-1 text-primary group font-semibold" onClick={() => { router.push('/workspace/proTip') }}>
-                                Learn about workspaces <ChevronRight className="ml-1 size-4 transition-transform group-hover:translate-x-1" />
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                </div>
+                                <Button type="submit" className='cursor-pointer' disabled={isSubmitting}>
+                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Create Workspace
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                )}
             </div>
-            <div className="space-y-6">
+
+            {/* All Workspaces Section */}
+            <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold tracking-tight text-black">Active Workspaces</h2>
+                    <div>
+                        <h2 className="text-2xl font-bold tracking-tight text-gray-800">All Workspaces</h2>
+                        <p className="text-sm text-muted-foreground">Manage and view all your active workspaces</p>
+                    </div>
                 </div>
-                <WorkspaceCard onAddClick={() => {
-                    setIsExpanded(true);
-                    document.getElementById('create-workspace')?.scrollIntoView({ behavior: 'smooth' });
-                }} />
+
+                {isLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3].map((i) => (
+                            <Card key={i} className="animate-pulse">
+                                <CardHeader className="h-32 bg-muted/50" />
+                            </Card>
+                        ))}
+                    </div>
+                ) : workspaces.length === 0 ? (
+                    <div className="text-center py-12 border-2 border-dashed rounded-xl">
+                        <Layout className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                        <h3 className="mt-4 text-lg font-semibold">No workspaces found</h3>
+                        <p className="text-muted-foreground">Get started by creating your first workspace above.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {workspaces.map((workspace) => (
+                            <Card key={workspace.id} className={`hover:shadow-md transition-shadow cursor-pointer border-l-4 ${getColorClass(workspace.color)}`}>
+                                <CardHeader className="pb-2">
+                                    <div className="flex justify-between items-start">
+                                        <CardTitle className="text-lg truncate mr-2">{workspace.project}</CardTitle>
+                                        <Badge variant={workspace.status === 'Active' ? 'default' : 'secondary'}>
+                                            {workspace.status}
+                                        </Badge>
+                                    </div>
+                                    <CardDescription className="line-clamp-2">{workspace.description || 'No description provided.'}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex items-center gap-2 text-sm text-primary font-medium">
+                                            <Users size={16} />
+                                            <span>Team Members</span>
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-2/3 text-black cursor-pointer hover:bg-gray-100 border-dashed"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setSelectedWorkspace(workspace)
+                                                setIsInviteOpen(true)
+                                            }}
+                                        >
+                                            <Plus size={14} className="mr-2" />
+                                            Add members
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="pt-2 flex justify-end">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:text-destructive"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleDelete(workspace.id)
+                                        }}
+                                    >
+                                        <Trash2 size={16} />
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
+                )}
             </div>
+
+            {/* Invite Members Dialog */}
+            <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Mail className="h-5 w-5 text-primary" />
+                            Invite to {selectedWorkspace?.project}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Enter email addresses separated by commas to invite team members.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="emails" className="text-black">Email Addresses</Label>
+                            <Textarea
+                                id="emails"
+                                placeholder="e.g. alex@example.com, sam@example.com"
+                                value={inviteEmails}
+                                onChange={(e) => setInviteEmails(e.target.value)}
+                                className="min-h-[120px] text-black"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsInviteOpen(false)} disabled={isInviting}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleInviteMembers} disabled={isInviting}>
+                            {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Send Invitations
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
 
 export default Workspace
+

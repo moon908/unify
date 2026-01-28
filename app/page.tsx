@@ -73,7 +73,7 @@ export default function Home() {
               <h2 className="text-2xl font-bold text-slate-900 mb-2">Welcome to Unify</h2>
               <p className="text-slate-500 mb-8">You are currently signed in as authorized user.</p>
               <Link
-                href="/dashboard"
+                href="/organisation"
                 className="block w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
               >
                 Go to Workspace
